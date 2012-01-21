@@ -1,3 +1,4 @@
+#define __ERROR_CHECK(x,y) if(ret == y){ perror(x); exit(y);}
 // Matt Helgen 
 // CS4461 - Computer Networks
 
@@ -10,6 +11,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+
+
+#define __ERROR_CHECK(x,y) if(ret == y){ perror(x); exit(y);}
+
 int bigEndian = 0;
 
 void checkEndian()
@@ -17,7 +22,10 @@ void checkEndian()
 	/* PART 1: Check endianness and print message about endianness here. */
 
 
+	printf("Networks use big-endian byte ordering\n");
+
 	//if host to network byte order conversion changes the value, we are using little-endian
+	//
 	bigEndian = ((1<<30) == htonl(1<<30));
 
 	if (bigEndian)
@@ -37,6 +45,10 @@ int main(int argc, char *argv[])
 {
 	checkEndian();
 
+	int ret;
+	char buf[30];
+
+	
 
 	/* The "hints" structure lets us specify exactly what type of
 	   address we want to get back from getaddrinfo(). */
