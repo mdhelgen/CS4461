@@ -1,4 +1,4 @@
-// YOUR NAME HERE
+// Matt Helgen 
 // CS4461 - Computer Networks
 
 #include <stdio.h>
@@ -10,10 +10,24 @@
 #include <string.h>
 #include <arpa/inet.h>
 
+int bigEndian = 0;
 
 void checkEndian()
 {
 	/* PART 1: Check endianness and print message about endianness here. */
+
+
+	//if host to network byte order conversion changes the value, we are using little-endian
+	bigEndian = ((1<<30) == htonl(1<<30));
+
+	if (bigEndian)
+		printf("This machine uses big-endian byte ordering\n");
+	else
+		printf("This machine uses little-endian byte ordering\n");
+
+
+	exit(1);
+
 
 }
 
