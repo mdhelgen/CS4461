@@ -43,7 +43,7 @@ size_t common_getLine(char **string, FILE *stream)
 		exit(-1);
 	}
 
-    return ret; // FIXME:  This always indicates we hit end of line.
+    return ret; 
 }
 
 
@@ -57,7 +57,13 @@ FILE* common_getStream(int sock)
     // Check for errors. If one occurred, print message and exit.
     // Return the stream returned by fdopen().
 
-    return NULL; // FIXME
+	FILE* filestream = fdopen(sock, "a+b");
+	if(filestream == NULL){
+		perror("##### common_getStream");
+		exit(-1);
+	}
+
+    return filestream;
 }
 
 
