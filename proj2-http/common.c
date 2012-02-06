@@ -106,10 +106,15 @@ int common_createSocket(char *hostname, char *port)
     // appropriate for the server.  Check return value of getaddrinfo() and
     // print message and exit if an error occurs.
 
-
+	int ret = getaddrinfo(hostname, port, &hints, &result);
+	if(ret != 0){
+		printf("##### common_createSocket %s\n", gai_strerror(ret));
+		exit(1);
+	}
+	
     // TODO: Create a socket using socket() and the "result" structure.
     // Check for an error.  If one occurs, print a message and exit.
-    int sock;
+    int sock = socket(result->ai_family, SOCK_STREAM, 0);
 
     /* If we are the client, initiate the connection. */
     if(hostname != NULL)
