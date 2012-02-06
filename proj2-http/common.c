@@ -32,7 +32,18 @@ size_t common_getLine(char **string, FILE *stream)
     // reached the end of file.  If feof(stream)!= 0, then the stream is
     // at the end of file.
 
-    return -1; // FIXME:  This always indicates we hit end of line.
+	size_t len = 0; 
+	size_t ret = 0;
+
+
+	ret = getline(string, &len, stream); 
+
+	if(ret == -1){
+		perror("##### common_getLine");
+		exit(-1);
+	}
+
+    return ret; // FIXME:  This always indicates we hit end of line.
 }
 
 

@@ -15,6 +15,10 @@ int main(int argc, char *argv[])
 {
     /* TODO: Check number of arguments */
 
+	if(argc < 3){
+		printf("\tUsage: ./client <hostname> <portnum>\n");
+		exit(1);	
+	}
 
     /* Setup socket. */
     int sock = common_createSocket(argv[1], argv[2]);
