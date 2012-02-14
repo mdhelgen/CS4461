@@ -1,8 +1,9 @@
-// YOUR NAME HERE
+// Matt Helgen
 // Computer Networks
 
 #include "common.h"
 
+#include <errno.h>
 /* Number of incoming connections to queue up while we are answering other
  * requests.  Used when we call listen(). */
 #define LISTEN_QUEUE_SIZE 10
@@ -37,10 +38,15 @@ size_t common_getLine(char **string, FILE *stream)
 
 
 	ret = getline(string, &len, stream); 
+	
+	if(feof(stream) != 0)
+		return -1;
 
+	// errno = 0 indicates the end of the stream was reached.
 	if(ret == -1){
-		perror("##### common_getLine");
-		exit(-1);
+		printf("errno = %d", errno);
+		perror("@@@@@ common_getLine");
+		exit(EXIT_FAILURE);
 	}
 
     return ret; 
@@ -59,8 +65,8 @@ FILE* common_getStream(int sock)
 
 	FILE* filestream = fdopen(sock, "a+b");
 	if(filestream == NULL){
-		perror("##### common_getStream");
-		exit(-1);
+		perror("@@@@@ common_getStream");
+		exit(EXIT_FAILURE);
 	}
 
     return filestream;
@@ -72,12 +78,22 @@ FILE* common_getStream(int sock)
  * are present, this function will block. */
 int common_acceptConnect(int sock)
 {
+    int attempts = 10;
+    int ret = -1;
     // TODO:
     // Call accept(sock, NULL, NULL)
     // Check for errors. If one occurred, try again repeatedly!
     // Return socket/file descriptor that accept() created.
+    while(ret == -1 && attempts-- > 0){
+    	ret = accept(sock, NULL, NULL);
+    }
 
-    return 1;
+
+	if(ret == -1){
+		perror("@@@@@ common_acceptConnect (accept) ");
+		exit(EXIT_FAILURE);
+	}
+    return ret;
 }
 
 
@@ -86,6 +102,7 @@ int common_acceptConnect(int sock)
  * is an error.*/
 int common_createSocket(char *hostname, char *port)
 {
+    int ret = 0;
     if(hostname == NULL && port == NULL)
     {
 	fprintf(stderr, "Both arguments to common_createSocket() were NULL\n");
@@ -106,10 +123,10 @@ int common_createSocket(char *hostname, char *port)
     // appropriate for the server.  Check return value of getaddrinfo() and
     // print message and exit if an error occurs.
 
-	int ret = getaddrinfo(hostname, port, &hints, &result);
+	ret = getaddrinfo(hostname, port, &hints, &result);
 	if(ret != 0){
-		printf("##### common_createSocket %s\n", gai_strerror(ret));
-		exit(1);
+		printf("@@@@@ common_createSocket (getaddrinfo) %s\n", gai_strerror(ret));
+		exit(EXIT_FAILURE);
 	}
 	
     // TODO: Create a socket using socket() and the "result" structure.
@@ -119,7 +136,12 @@ int common_createSocket(char *hostname, char *port)
     /* If we are the client, initiate the connection. */
     if(hostname != NULL)
     {
-
+    	
+	ret = connect(sock, result->ai_addr, result->ai_addrlen);
+	if(ret == -1){
+		perror("@@@@@ common_createSocket (connect) ");
+		exit(EXIT_FAILURE);
+	}
 	// TODO: Call connect() with "sock" and information from the
 	// "result" struct to start a TCP connection.  Check for error.  If
 	// one occurs, print message and exit.
@@ -138,10 +160,20 @@ int common_createSocket(char *hostname, char *port)
 	// TODO: bind() the socket using "sock" and information in the
 	// "result" structure as parameters.  Check for error.  If one
 	// occurs, print message and exit.
+	ret = bind(sock, result->ai_addr, result->ai_addrlen);
+	if (ret == -1){
+		perror("@@@@@ common_createSocket (bind) ");
+		exit(EXIT_FAILURE);
+	}
 
 	// TODO: Start litening for connections on the socket by using
 	// listen().  Set the backlog to LISTEN_QUEUE_SIZE.  Check for
 	// error.  If one occurs, print message and exit.
+	ret = listen(sock, LISTEN_QUEUE_SIZE);
+	if(ret == -1){
+		perror("@@@@@ common_createSocket (listen) ");
+		exit(EXIT_FAILURE);
+	}
 
     }  // end server-specific stuff
 

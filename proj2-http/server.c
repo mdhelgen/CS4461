@@ -1,4 +1,4 @@
-// YOUR NAME HERE
+// Matt Helgen
 // HTTP Server - Computer Networks
 
 
@@ -11,12 +11,16 @@
 
 #include "common.h"
 
-
+#define __chk_ret() if(ret<0){perror("@@@@@ server encountered error writing to socket")}
 
 
 int main(int argc, char *argv[])
 {
     /* TODO: Check number of arguments */
+    if (argc < 3){
+    	printf("\tUsage: ./server <port> <message>\n");
+	exit(EXIT_FAILURE);
+    } 
 
     // Create a socket to listen on:
     int sock = common_createSocket(NULL, argv[1]);
@@ -33,23 +37,73 @@ int main(int argc, char *argv[])
 	char *line = NULL;
 	common_getLine(&line, stream);
 
-	// TODO: Process line from client.
 
-	// TODO: If line begins with "GET / HTTP", answer with message
-	// given as command-line parameter.  Close connection after message
-	// is sent.
 
-	// TODO: If some other message received beginning with GET, send
-	// HTTP 404 response.  For example, "GET /favicon.ico HTTP/1.1".
-	// Close connection after message is sent.
+/*   // test case for client with chunked encoding
+	fprintf(stream, "HTTP/1.1 200 OK\r\n");
+	fprintf(stream, "Content-Type: text/plain\r\n");
+	fprintf(stream, "Transfer-Encoding: chunked\r\n");
+	fprintf(stream, "\r\n");
+	fprintf(stream, "25\r\n");
+	fprintf(stream, "This is the data in the first chunk\r\n\r\n");
+	fprintf(stream, "1C\r\n");
+	fprintf(stream, "and this is the second one\r\n");
+	fprintf(stream, "3\r\n");
+	fprintf(stream, "con\r\n");
+	fprintf(stream, "8\r\n");
+	fprintf(stream, "sequence\r\n");
+	fprintf(stream, "0\r\n");
+	fclose(stream);
+	free(line);
+}
+/**/
+	
+	//is this an HTTP GET request?
+	if(strncmp(line, "GET", strlen("GET")) == 0){
 
-	// TODO: If message doesn't begin with "GET", close connection
-	// without sending 404 response.
+		//is this a GET request for "/" ?
+		if(strncmp(line, "GET / HTTP", strlen("GET / HTTP")) == 0){
+			ret = fprintf(stream, "HTTP/1.1 200 OK\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "Content-Type: text/plain\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "Connnection: close\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "%s\r\n", argv[2]);
+			__CHK_RET();
+
+			fclose(stream);
+		}
+		// if not for "/", return HTTP 404
+		else{
+			ret = fprintf(stream, "HTTP/1.1 404 NOT FOUND\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "Content-Type: text/plain\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "Connnection: close\r\n");
+			__CHK_RET();
+
+			ret = fprintf(stream, "\r\n");
+			__CHK_RET();
+
+			fclose(stream);
+		}
+	// if not HTTP GET, close connection
+	}else{
+		fclose(stream);
+	}
 
 	free(line);
 
     }  // end: main server loop
-
 
 
     return 0;
