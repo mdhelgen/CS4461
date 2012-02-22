@@ -55,8 +55,11 @@ int main(int argc, char *argv[])
 	}
 
 
-	unreliable_sendto(sockfd, argv[2], strlen(argv[2]),
+	rv = unreliable_sendto(sockfd, argv[2], strlen(argv[2]),
 	                  0, p->ai_addr, p->ai_addrlen);
+	if(rv == -1){
+		perror("client: sendto");
+	}
 	// return value of unreliable_sendto() is the same as sendto().
 	// Return values should be checked in case there are errors!
 
