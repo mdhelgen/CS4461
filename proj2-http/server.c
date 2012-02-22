@@ -11,11 +11,14 @@
 
 #include "common.h"
 
-#define __chk_ret() if(ret<0){perror("@@@@@ server encountered error writing to socket")}
+#define __CHK_RET(); if(ret<0){perror("@@@@@ server encountered error writing to socket");}
 
 
 int main(int argc, char *argv[])
 {
+
+	int ret;
+
     /* TODO: Check number of arguments */
     if (argc < 3){
     	printf("\tUsage: ./server <port> <message>\n");
@@ -56,8 +59,7 @@ int main(int argc, char *argv[])
 	fclose(stream);
 	free(line);
 }
-/**/
-	
+*/
 	//is this an HTTP GET request?
 	if(strncmp(line, "GET", strlen("GET")) == 0){
 

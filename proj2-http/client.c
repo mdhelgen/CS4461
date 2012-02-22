@@ -67,23 +67,32 @@ int main(int argc, char *argv[])
     while(1) // while there is data to read
     {
 	char *string = NULL;
+
+	// if the chunked flag is not set, or a blank line has not been hit (marking the end of message headers) process the line normally
 	if (chunked == 0 || blank == 0)	
 		len = common_getLine(&string, stream);
+
+	// if the chunked flag has been set, and a blank line has been hit, begin interpreting the body as chunksizes / chunks
 	if (chunked == 1 && blank == 1){
 		
 		//the next line will indicate how much data is in the chunk
 		common_getLine(&string, stream);
+		//convert th
 		int chunkSize = strtol(string, NULL, 16);
 	
 		printf("##### Next chunk is %d bytes\n", chunkSize);
 
+		//a 0 length chunk denotes the end of the chunked message body
 		if(chunkSize == 0){
+
+			// reset the chunked flag to 0
 			chunked = 0;
+
+			//the rest of the loop need not be executed because there is no trailing chunk
 			continue;
 		}
 		
-		
-		//free the space allocated by common_getLine()
+		//free the space allocated by common_getLine() (which is currently holding the size of the chunk)
 		free(string);
 
 
@@ -112,29 +121,38 @@ int main(int argc, char *argv[])
 
 
 
-	//printf("line length: %d (%d)\n",len, strcmp(string, "\r\n"));	
-
-
+	// if len is -1, the EOF was reached from the socket
 	if (len == -1){
+	
+		// clean up the socket and string buffer
 		fclose(stream);
 		free(string);
+
 		printf("##### Connection closed\n");
+
+		//terminate cleanly
 		exit(EXIT_SUCCESS);
 	}
 
+	// if no blank lines have been seen, we are still parsing the message headers
+	// if the current line is the Transfer-Encoding header, mark the chunked flag to interpret the body as a chunked message
 	if (blank == 0 && !strncmp(string, "Transfer-Encoding: chunked\r\n", strlen("Transfer-Encoding: chunked\r\n"))){
 		printf("##### Response is using chunked encoding\n");
 		chunked = 1;
 
 	}
-	// TODO: Process the line that we have read.
+
+	// take note of blank lines received from the server
 	if (strcmp(string, "\r\n") == 0){
 		printf("##### Just read blank line\n");
 		blank++;
 	}
 
+	// print the string
 	printf(string);
 
+
+	// free memory allocated for the string
 	free(string);
 
     } // end infinite loop
