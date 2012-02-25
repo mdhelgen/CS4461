@@ -13,6 +13,8 @@ struct packet{
 };
 
 // the UDP port users will be connecting to on server
-#define SERVERPORT "6666"
+#define SERVERPORT "29392"
 
 char* create_packet_string(struct packet);
+int calc_checksum(struct packet);
+
