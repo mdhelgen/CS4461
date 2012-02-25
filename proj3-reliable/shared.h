@@ -17,4 +17,4 @@ struct packet{
 
 char* create_packet_string(struct packet);
 int calc_checksum(struct packet);
-
+int convert_to_packet(char*, struct packet*);

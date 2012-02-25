@@ -81,6 +81,12 @@ int main(void)
 	}
 	buf[numbytes] = '\0';
 	printf("Server received: %s\n", buf);
+
+	struct packet pkt;
+	int cs_pass = convert_to_packet(buf, &pkt);
+	printf("packet seq no: %d\n", pkt.seq_no);
+	printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
+
     }
 
 

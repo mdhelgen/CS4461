@@ -12,9 +12,9 @@
 #include "unreliable.h"
 
 // 0.05 means that the event will happen about 5% of the time.
-#define DROP_PERCENTAGE 0.05
-#define CORRUPT_PERCENTAGE 0.05
-#define ORDER_PERCENTAGE 0.05
+#define DROP_PERCENTAGE 0
+#define CORRUPT_PERCENTAGE 0
+#define ORDER_PERCENTAGE 0 
 
 
 // set DEBUG to 1 to just call sendto() directly (should be the same

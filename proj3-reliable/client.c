@@ -54,12 +54,23 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 
+	int current_seq_no = 0;
+	
+	//send a SYN packet to the server to signal we want to open a connection
+	struct packet pkt;
+
+/*
+	pkt.syn = 1;
+	pkt.ack = 0;
+	pkt.fin = 0;
+	pkt.seq_no = current_seq_no++;
+	pkt.msg = ':
+*/
 	for(int i=0; i < strlen(argv[2]); i++)
 	{
 	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
 	
 		//construct the packet
-		struct packet pkt;
 		pkt.syn = 0;
 		pkt.ack = 0;
 		pkt.fin = 0;
