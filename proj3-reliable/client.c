@@ -56,25 +56,28 @@ int main(int argc, char *argv[])
 
 	for(int i=0; i < strlen(argv[2]); i++)
 	{
-		printf("argv[2][%d] = %c\n", i, argv[2][i]);
+	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
+	
+		//construct the packet
 		struct packet pkt;
 		pkt.syn = 0;
 		pkt.ack = 0;
 		pkt.fin = 0;
 		pkt.seq_no = i;
 		pkt.msg = argv[2][i];
-		pkt.checksum = calc_checksum(pkt);
+
+		//encode the packet as a string
 		char* pkt_string = create_packet_string(pkt);
 		printf("packet string:  %s\n", pkt_string);
-	}
 
-	rv = unreliable_sendto(sockfd, argv[2], strlen(argv[2]),
+		rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
 	                  0, p->ai_addr, p->ai_addrlen);
-	if(rv == -1){
-		perror("client: sendto");
+		if(rv == -1){
+			perror("client: unreliable_sendto");
+		}
+
+		free(pkt_string);
 	}
-	// return value of unreliable_sendto() is the same as sendto().
-	// Return values should be checked in case there are errors!
 
 
 	freeaddrinfo(servinfo);
