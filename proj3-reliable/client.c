@@ -54,6 +54,19 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 
+	for(int i=0; i < strlen(argv[2]); i++)
+	{
+		printf("argv[2][%d] = %c\n", i, argv[2][i]);
+		struct packet pkt;
+		pkt.syn = 0;
+		pkt.ack = 0;
+		pkt.fin = 0;
+		pkt.seq_no = i;
+		pkt.msg = argv[2][i];
+		pkt.checksum = calc_checksum(pkt);
+		char* pkt_string = create_packet_string(pkt);
+		printf("packet string:  %s\n", pkt_string);
+	}
 
 	rv = unreliable_sendto(sockfd, argv[2], strlen(argv[2]),
 	                  0, p->ai_addr, p->ai_addrlen);

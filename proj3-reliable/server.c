@@ -70,6 +70,7 @@ int main(void)
     {
 	printf("Waiting for something to read...\n");
 
+	//TODO: change recvfrom() to select() to prevent blocking, and implement timeout
 	addr_len = sizeof their_addr;
 	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
 				 (struct sockaddr *)&their_addr,
