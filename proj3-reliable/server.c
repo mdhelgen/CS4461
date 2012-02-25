@@ -68,24 +68,24 @@ int main(void)
 
     while(1)
     {
-	printf("Waiting for something to read...\n");
+		printf("Waiting for something to read...\n");
 
-	//TODO: change recvfrom() to select() to prevent blocking, and implement timeout
-	addr_len = sizeof their_addr;
-	if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
+		//TODO: change recvfrom() to select() to prevent blocking, and implement timeout
+		addr_len = sizeof their_addr;
+		if ((numbytes = recvfrom(sockfd, buf, MAXBUFLEN-1 , 0,
 				 (struct sockaddr *)&their_addr,
 				 &addr_len)) == -1)
-	{
-	    perror("recvfrom");
-	    exit(1);
-	}
-	buf[numbytes] = '\0';
-	printf("Server received: %s\n", buf);
+		{
+		    perror("recvfrom");
+		    exit(1);
+		}
+		buf[numbytes] = '\0';
+		printf("Server received: %s\n", buf);
 
-	struct packet pkt;
-	int cs_pass = convert_to_packet(buf, &pkt);
-	printf("packet seq no: %d\n", pkt.seq_no);
-	printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
+		struct packet pkt;
+		int cs_pass = convert_to_packet(buf, &pkt);
+		printf("packet seq no: %d\n", pkt.seq_no);
+		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
 
     }
 

@@ -58,14 +58,23 @@ int main(int argc, char *argv[])
 	
 	//send a SYN packet to the server to signal we want to open a connection
 	struct packet pkt;
+	char* pkt_string;
 
-/*
 	pkt.syn = 1;
 	pkt.ack = 0;
 	pkt.fin = 0;
 	pkt.seq_no = current_seq_no++;
-	pkt.msg = ':
-*/
+	pkt.msg = '~';
+
+	pkt_string = create_packet_string(pkt);
+
+	rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+	if(rv == -1){
+		perror("client: unreliable_sendto");
+	}
+	free(pkt_string);
+	
+	
 	for(int i=0; i < strlen(argv[2]); i++)
 	{
 	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
@@ -74,11 +83,11 @@ int main(int argc, char *argv[])
 		pkt.syn = 0;
 		pkt.ack = 0;
 		pkt.fin = 0;
-		pkt.seq_no = i;
+		pkt.seq_no = current_seq_no++;
 		pkt.msg = argv[2][i];
 
 		//encode the packet as a string
-		char* pkt_string = create_packet_string(pkt);
+		pkt_string = create_packet_string(pkt);
 		printf("packet string:  %s\n", pkt_string);
 
 		rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
@@ -89,6 +98,20 @@ int main(int argc, char *argv[])
 
 		free(pkt_string);
 	}
+
+	pkt.syn = 0;
+	pkt.ack = 0;
+	pkt.fin = 1;
+	pkt.seq_no = current_seq_no++;
+	pkt.msg = '~';
+
+	pkt_string = create_packet_string(pkt);
+
+	rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+	if(rv == -1){
+		perror("client: unreliable_sendto");	
+	}
+
 
 
 	freeaddrinfo(servinfo);
