@@ -17,13 +17,16 @@
 #include "unreliable.h"
 #include "shared.h"
 
-
+#define MAXBUFLEN 100
 
 int main(int argc, char *argv[])
 {
 	int sockfd;
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
+	socklen_t addr_len;
+	struct sockaddr_storage their_addr;
+	char buf[MAXBUFLEN];
 
 	if (argc != 3) {
 		fprintf(stderr,"usage: %s hostname message\n", argv[0]);
@@ -74,7 +77,7 @@ int main(int argc, char *argv[])
 	}
 	free(pkt_string);
 	
-	
+	//TODO: this for loop will eventually have to change for the sliding window	
 	for(int i=0; i < strlen(argv[2]); i++)
 	{
 	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
@@ -97,6 +100,10 @@ int main(int argc, char *argv[])
 		}
 
 		free(pkt_string);
+		
+		addr_len = sizeof(their_addr);
+//		recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+		//wait somewhere down here and listen for ACKs
 	}
 
 	pkt.syn = 0;

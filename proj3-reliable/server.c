@@ -87,6 +87,20 @@ int main(void)
 		printf("packet seq no: %d\n", pkt.seq_no);
 		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
 
+		//create the response packet
+		struct packet resp_pkt;
+		memcpy(&resp_pkt, &pkt, sizeof(pkt));
+
+		resp_pkt.ack = 1;
+		resp_pkt.syn = 0;
+		resp_pkt.fin = 0;
+		char* resp_str = create_packet_string(resp_pkt);
+
+		printf("response packet: %s\n", resp_str);
+		free(resp_str);
+
+		//TODO: after receiving a packet, respond with an ACK
+
     }
 
 

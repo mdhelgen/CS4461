@@ -20,7 +20,7 @@ struct packet{
  */
 int calc_checksum(struct packet input){
 
-	return input.syn + input.ack + input.fin + input.seq_no + input.msg;
+	return (input.syn << 2) + (input.ack << 3) + (input.fin << 4) + input.seq_no + input.msg;
 
 }
 
