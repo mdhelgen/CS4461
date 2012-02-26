@@ -84,7 +84,7 @@ int main(void)
 
 		struct packet pkt;
 		int cs_pass = convert_to_packet(buf, &pkt);
-		printf("packet seq no: %d\n", pkt.seq_no);
+
 		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
 
 		//create the response packet
@@ -94,9 +94,15 @@ int main(void)
 		resp_pkt.ack = 1;
 		resp_pkt.syn = 0;
 		resp_pkt.fin = 0;
+		resp_pkt.msg = '~';
 		char* resp_str = create_packet_string(resp_pkt);
 
 		printf("response packet: %s\n", resp_str);
+
+		rv = unreliable_sendto(sockfd, resp_str, strlen(resp_str), 0, (struct sockaddr*) &their_addr, addr_len);
+		if(rv == -1){
+			perror("server: unreliable_sendto");
+		}
 		free(resp_str);
 
 		//TODO: after receiving a packet, respond with an ACK

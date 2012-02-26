@@ -100,9 +100,26 @@ int main(int argc, char *argv[])
 		}
 
 		free(pkt_string);
-		
-		addr_len = sizeof(their_addr);
-//		recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+
+		fd_set readfds;
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		FD_ZERO(&readfds);
+		FD_SET(sockfd, &readfds);
+		rv = select(sockfd+1, &readfds, NULL, NULL, &timeout);
+		if(rv){
+			bzero(buf, MAXBUFLEN);
+			addr_len = sizeof(their_addr);
+			recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+			printf("RECV: %s\n", buf);
+			struct packet resp;
+			int cs_pass = convert_to_packet(buf, &resp);
+
+			if(resp.ack){
+				printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+			}
+		}
 		//wait somewhere down here and listen for ACKs
 	}
 
