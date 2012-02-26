@@ -31,6 +31,7 @@ int main(void)
     socklen_t addr_len;
     char s[INET6_ADDRSTRLEN];
     char receivedMsg[2048];
+	int receivedBytes = 0;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -86,7 +87,16 @@ int main(void)
 		int cs_pass = convert_to_packet(buf, &pkt);
 
 		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
+		if(!(pkt.syn + pkt.ack + pkt.fin) && cs_pass){
+			receivedMsg[receivedBytes++] = pkt.msg;
+			receivedMsg[receivedBytes] = '\0';
+		}
 
+		if(pkt.fin && cs_pass){
+			printf("received FIN\n");
+			printf("The complete message is: %s\n", receivedMsg);
+		}
+		
 		//create the response packet
 		struct packet resp_pkt;
 		memcpy(&resp_pkt, &pkt, sizeof(pkt));
