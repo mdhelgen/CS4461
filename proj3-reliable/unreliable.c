@@ -13,7 +13,7 @@
 
 // 0.05 means that the event will happen about 5% of the time.
 #define DROP_PERCENTAGE 0
-#define CORRUPT_PERCENTAGE 0
+#define CORRUPT_PERCENTAGE 0.1
 #define ORDER_PERCENTAGE 0 
 
 

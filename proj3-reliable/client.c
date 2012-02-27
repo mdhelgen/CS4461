@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
 	socklen_t addr_len;
 	struct sockaddr_storage their_addr;
 	char buf[MAXBUFLEN];
+	int cs_pass;
 
 	if (argc != 3) {
 		fprintf(stderr,"usage: %s hostname message\n", argv[0]);
@@ -76,6 +77,18 @@ int main(int argc, char *argv[])
 		perror("client: unreliable_sendto");
 	}
 	free(pkt_string);
+
+	bzero(buf, MAXBUFLEN);
+	addr_len = sizeof(their_addr);
+	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+	printf("RECV: %s\n", buf);
+	struct packet resp;
+	cs_pass = convert_to_packet(buf, &resp);
+
+	if(resp.ack){
+		printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+	}
+
 	
 	//TODO: this for loop will eventually have to change for the sliding window	
 	for(int i=0; i < strlen(argv[2]); i++)
@@ -101,6 +114,7 @@ int main(int argc, char *argv[])
 
 		free(pkt_string);
 
+
 		fd_set readfds;
 		struct timeval timeout;
 		timeout.tv_sec = 1;
@@ -113,8 +127,7 @@ int main(int argc, char *argv[])
 			addr_len = sizeof(their_addr);
 			recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
 			printf("RECV: %s\n", buf);
-			struct packet resp;
-			int cs_pass = convert_to_packet(buf, &resp);
+			cs_pass = convert_to_packet(buf, &resp);
 
 			if(resp.ack){
 				printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
@@ -137,6 +150,17 @@ int main(int argc, char *argv[])
 	}
 
 
+	bzero(buf, MAXBUFLEN);
+	addr_len = sizeof(their_addr);
+	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+	printf("RECV: %s\n", buf);
+	cs_pass = convert_to_packet(buf, &resp);
+
+	if(resp.ack){
+		printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+	}
+
+	
 
 	freeaddrinfo(servinfo);
 
