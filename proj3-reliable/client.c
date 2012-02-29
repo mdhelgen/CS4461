@@ -19,6 +19,8 @@
 
 #define MAXBUFLEN 100
 
+#define WINDOW_SIZE 3
+
 int main(int argc, char *argv[])
 {
 	int sockfd;
@@ -27,7 +29,23 @@ int main(int argc, char *argv[])
 	socklen_t addr_len;
 	struct sockaddr_storage their_addr;
 	char buf[MAXBUFLEN];
-	int cs_pass;
+
+	int cs_pass; 				//return value for checksum validation
+	int packets_to_send = 0; 	//how many message packets remain to send to the server
+	int packets_sent = 0; 		//how many total message packets we have sent
+	int acks_outstanding = 0;	//the number of outstanding ACKs in the window
+	int current_seq_no = 0; 	//the value of the next packet sequence number
+
+	struct packet pkt;          //packet struct for manipulating packet data
+	char* pkt_string;			//packets are encoded as strings before sending
+
+	struct packet window[WINDOW_SIZE];
+	int window_slot_full[WINDOW_SIZE];
+
+	//initialize the window as having no contained packets
+	for(int i = 0; i < WINDOW_SIZE; i++)
+		window_slot_full[i] = 0;
+
 
 	if (argc != 3) {
 		fprintf(stderr,"usage: %s hostname message\n", argv[0]);
@@ -58,11 +76,8 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 
-	int current_seq_no = 0;
 	
 	//send a SYN packet to the server to signal we want to open a connection
-	struct packet pkt;
-	char* pkt_string;
 
 	pkt.syn = 1;
 	pkt.ack = 0;
@@ -70,14 +85,17 @@ int main(int argc, char *argv[])
 	pkt.seq_no = current_seq_no++;
 	pkt.msg = '~';
 
+	//encode the SYN packet as a string
 	pkt_string = create_packet_string(pkt);
 
+	//send the SYN to the server
 	rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
 	if(rv == -1){
 		perror("client: unreliable_sendto");
 	}
 	free(pkt_string);
 
+	//listen for an ACK
 	bzero(buf, MAXBUFLEN);
 	addr_len = sizeof(their_addr);
 	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
@@ -89,32 +107,53 @@ int main(int argc, char *argv[])
 		printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
 	}
 
+	packets_to_send = strlen(argv[2]);
 	
 	//TODO: this for loop will eventually have to change for the sliding window	
-	for(int i=0; i < strlen(argv[2]); i++)
+	//for(int i=0; i < strlen(argv[2]); i++)
+	printf("%d || %d\n", packets_sent < packets_to_send, acks_outstanding > 0);
+	while(packets_sent < packets_to_send || acks_outstanding > 0)
 	{
 	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
-	
-		//construct the packet
-		pkt.syn = 0;
-		pkt.ack = 0;
-		pkt.fin = 0;
-		pkt.seq_no = current_seq_no++;
-		pkt.msg = argv[2][i];
 
-		//encode the packet as a string
-		pkt_string = create_packet_string(pkt);
-		printf("packet string:  %s\n", pkt_string);
+		while(acks_outstanding < WINDOW_SIZE){
 
-		rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
-	                  0, p->ai_addr, p->ai_addrlen);
-		if(rv == -1){
-			perror("client: unreliable_sendto");
+			if(packets_sent == packets_to_send)
+				break;
+
+			//construct the packet
+			pkt.syn = 0;
+			pkt.ack = 0;
+			pkt.fin = 0;
+			pkt.seq_no = current_seq_no++;
+			pkt.msg = argv[2][packets_sent];
+
+			int j = 0;
+			while(window_slot_full[j] && j < WINDOW_SIZE)
+				j++;
+
+			//encode the packet as a string
+			pkt_string = create_packet_string(pkt);
+			printf("packet string:  %s (window slot = %d)\n", pkt_string, j);
+
+			memcpy(&window[j] , &pkt, sizeof(pkt));
+
+			window_slot_full[j] = 1;
+
+			rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
+	   	               0, p->ai_addr, p->ai_addrlen);
+			if(rv == -1){
+				perror("client: unreliable_sendto");
+			}
+
+			packets_sent++;
+			acks_outstanding++;
+
+			free(pkt_string);
 		}
 
-		free(pkt_string);
 
-
+		//listen for incoming packets
 		fd_set readfds;
 		struct timeval timeout;
 		timeout.tv_sec = 1;
@@ -130,12 +169,24 @@ int main(int argc, char *argv[])
 			cs_pass = convert_to_packet(buf, &resp);
 
 			if(resp.ack){
+				acks_outstanding--;
+
+				for(int i = 0; i < WINDOW_SIZE; i++){
+					if(window_slot_full[i] && window[i].seq_no == resp.seq_no){
+						printf("ACK received for seq no %d, window slot %d\n", resp.seq_no, i);
+						window_slot_full[i] = 0;
+						bzero(&window[i], sizeof(struct packet));
+					}
+					
+				}
+
+
 				printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
 			}
 		}
-		//wait somewhere down here and listen for ACKs
 	}
 
+	//send our FIN
 	pkt.syn = 0;
 	pkt.ack = 0;
 	pkt.fin = 1;
