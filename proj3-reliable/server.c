@@ -33,6 +33,9 @@ int main(void)
     char receivedMsg[2048];
 	int receivedBytes = 0;
 
+	int expected_seq_no = 0;
+	int seq_no_skipped = 0;
+
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -87,6 +90,12 @@ int main(void)
 		bzero(&pkt, sizeof(pkt));
 		int cs_pass = convert_to_packet(buf, &pkt);
 
+		if(pkt.seq_no != expected_seq_no){
+			
+			seq_no_skipped = expected_seq_no - 1;
+
+		}
+
 		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
 		if(!(pkt.syn + pkt.ack + pkt.fin) && cs_pass){
 			receivedMsg[receivedBytes++] = pkt.msg;
@@ -94,6 +103,7 @@ int main(void)
 		}
 
 		if(pkt.fin && cs_pass){
+			//TODO: close the connection cleanly
 			printf("received FIN\n");
 			printf("The complete message is: %s\n", receivedMsg);
 		}
@@ -106,6 +116,10 @@ int main(void)
 		resp_pkt.syn = 0;
 		resp_pkt.fin = 0;
 		resp_pkt.msg = '~';
+		if(seq_no_skipped){
+		//	resp_pkt.seq_no = seq_no_skipped;
+
+		}
 		char* resp_str = create_packet_string(resp_pkt);
 
 		printf("response packet: %s\n", resp_str);

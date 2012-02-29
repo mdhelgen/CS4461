@@ -111,7 +111,6 @@ int main(int argc, char *argv[])
 	
 	//TODO: this for loop will eventually have to change for the sliding window	
 	//for(int i=0; i < strlen(argv[2]); i++)
-	printf("%d || %d\n", packets_sent < packets_to_send, acks_outstanding > 0);
 	while(packets_sent < packets_to_send || acks_outstanding > 0)
 	{
 	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
@@ -136,9 +135,11 @@ int main(int argc, char *argv[])
 			pkt_string = create_packet_string(pkt);
 			printf("packet string:  %s (window slot = %d)\n", pkt_string, j);
 
+			//copy the packet into the window
 			memcpy(&window[j] , &pkt, sizeof(pkt));
 
-			window_slot_full[j] = 1;
+			//mark the window as being full there
+			window_slot_full[j] = pkt.seq_no;
 
 			rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
 	   	               0, p->ai_addr, p->ai_addrlen);
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
 				acks_outstanding--;
 
 				for(int i = 0; i < WINDOW_SIZE; i++){
-					if(window_slot_full[i] && window[i].seq_no == resp.seq_no){
+					if(window_slot_full[i] == resp.seq_no){
 						printf("ACK received for seq no %d, window slot %d\n", resp.seq_no, i);
 						window_slot_full[i] = 0;
 						bzero(&window[i], sizeof(struct packet));

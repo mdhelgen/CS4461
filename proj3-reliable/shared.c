@@ -38,7 +38,7 @@ char* create_packet_string(struct packet input){
 
 	input.checksum = calc_checksum(input);
 	char* target = malloc(13+ input.seq_no%10 + input.checksum%10);
-	sprintf(target, "%d %d %d %d %c %d\0", input.syn, input.ack, input.fin, input.seq_no, input.msg, input.checksum);
+	sprintf(target, "%d %d %d %d %c %d%c", input.syn, input.ack, input.fin, input.seq_no, input.msg, input.checksum, '\0');
 
 	return target;
 }
