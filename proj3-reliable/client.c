@@ -39,23 +39,25 @@ int main(int argc, char *argv[])
 	struct packet pkt;          //packet struct for manipulating packet data
 	char* pkt_string;			//packets are encoded as strings before sending
 
-	struct packet window[WINDOW_SIZE];
-	int window_slot_full[WINDOW_SIZE];
+	struct packet window[WINDOW_SIZE];  //holds packet data for packets waiting to be ACKd
+	int window_slot_full[WINDOW_SIZE];  //holds the seq_no for the packet in that slot in the window, 0 if empty
 
 	//initialize the window as having no contained packets
 	for(int i = 0; i < WINDOW_SIZE; i++)
 		window_slot_full[i] = 0;
 
-
+	//arg check
 	if (argc != 3) {
 		fprintf(stderr,"usage: %s hostname message\n", argv[0]);
 		exit(1);
 	}
 
+	//setup for getaddrinfo
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
 
+	//get info about the server
 	if ((rv = getaddrinfo(argv[1], SERVERPORT, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
@@ -95,12 +97,17 @@ int main(int argc, char *argv[])
 	}
 	free(pkt_string);
 
-	//listen for an ACK
 	bzero(buf, MAXBUFLEN);
 	addr_len = sizeof(their_addr);
+
+	//listen for an ACK to our SYN
 	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+
 	printf("RECV: %s\n", buf);
 	struct packet resp;
+
+	//convert the received message into a packet struct
+	//cs_pass is the result of the checksum validation
 	cs_pass = convert_to_packet(buf, &resp);
 
 	if(resp.ack){
@@ -108,15 +115,16 @@ int main(int argc, char *argv[])
 	}
 
 	packets_to_send = strlen(argv[2]);
-	
-	//TODO: this for loop will eventually have to change for the sliding window	
-	//for(int i=0; i < strlen(argv[2]); i++)
+
+
+	//while we still have packets to send, or are waiting for acks, go into the send/receive loop
 	while(packets_sent < packets_to_send || acks_outstanding > 0)
 	{
-	//	printf("argv[2][%d] = %c\n", i, argv[2][i]);
 
+		//sliding window -- if there is room in the window, send packets
 		while(acks_outstanding < WINDOW_SIZE){
 
+			//however, don't send packets if the message has all been sent, and we are waiting for acks only
 			if(packets_sent == packets_to_send)
 				break;
 
@@ -127,6 +135,7 @@ int main(int argc, char *argv[])
 			pkt.seq_no = current_seq_no++;
 			pkt.msg = argv[2][packets_sent];
 
+			//find the next available open slot in the window
 			int j = 0;
 			while(window_slot_full[j] && j < WINDOW_SIZE)
 				j++;
@@ -165,24 +174,37 @@ int main(int argc, char *argv[])
 		if(rv){
 			bzero(buf, MAXBUFLEN);
 			addr_len = sizeof(their_addr);
+
+			//receive a packet
 			recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
 			printf("RECV: %s\n", buf);
+
+			//convert packet to a string
+			//cs_pass is a boolean indicator of the checksum valiation
 			cs_pass = convert_to_packet(buf, &resp);
+
 
 			if(resp.ack){
 				acks_outstanding--;
 
+				int ack_matched = 0;
+
+				//window_slot_full array contains the seq_no of the packet in that window slot
 				for(int i = 0; i < WINDOW_SIZE; i++){
+
+					//if this slot matches the ACK we just received
 					if(window_slot_full[i] == resp.seq_no){
 						printf("ACK received for seq no %d, window slot %d\n", resp.seq_no, i);
+						
+						ack_matched = 1;
+						//empty the window slot
 						window_slot_full[i] = 0;
 						bzero(&window[i], sizeof(struct packet));
 					}
 					
 				}
-
-
-				printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+				if(ack_matched == 0)
+					printf("ACK with seq_no %d received, but is not outstanding!\n", resp.seq_no);
 			}
 		}
 	}
