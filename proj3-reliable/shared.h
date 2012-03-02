@@ -1,4 +1,5 @@
 #include "unreliable.h"
+#include <sys/time.h>
 
 /* Put the prototypes here for any functions here which you want to be able
    to use by both client.c and server.c. */
@@ -10,6 +11,7 @@ struct packet{
   int seq_no;
   char msg;
   int checksum;
+  struct timeval tv;
 };
 
 // the UDP port users will be connecting to on server

@@ -29,12 +29,13 @@ int main(void)
     struct sockaddr_storage their_addr;
     char buf[MAXBUFLEN];
     socklen_t addr_len;
-    char s[INET6_ADDRSTRLEN];
     char receivedMsg[2048];
 	int receivedBytes = 0;
 
+	int cumulative_ack = 0;
 	int expected_seq_no = 0;
-	int seq_no_skipped = 0;
+
+	int no_connection = 1;
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -86,26 +87,66 @@ int main(void)
 		buf[numbytes] = '\0';
 		printf("Server received: %s\n", buf);
 
+		//construct the packet
 		struct packet pkt;
 		bzero(&pkt, sizeof(pkt));
 		int cs_pass = convert_to_packet(buf, &pkt);
 
-		if(pkt.seq_no != expected_seq_no){
-			
-			seq_no_skipped = expected_seq_no - 1;
+		//sometimes a corrupted packet will mess up the conversion to a struct
+		//this results in a seq no of 0, and sometimes can affect the checksum as well
+		//this happens because the corruption of a number to a character can mess up fscanf
+		if(!pkt.syn && pkt.seq_no == 0){
+
+			//just force the checksum to fail
+			cs_pass = 0;
+		}
+
+		//open the connection
+		if(pkt.syn && cs_pass && no_connection){
+			expected_seq_no = 0;
+			receivedBytes = 0;
+			bzero(receivedMsg, 2048);
+			no_connection = 0;
+
+		}
+
+		//cumulative ack stuff
+		if(pkt.seq_no == expected_seq_no && cs_pass){
+
+			cumulative_ack = pkt.seq_no;
+			expected_seq_no++;
 
 		}
 
 		printf("received packet containing: %c %s\n", pkt.msg, cs_pass ? "" : "(checksum failed)"); 
+
+		//message packet
 		if(!(pkt.syn + pkt.ack + pkt.fin) && cs_pass){
-			receivedMsg[receivedBytes++] = pkt.msg;
-			receivedMsg[receivedBytes] = '\0';
+			
+			//receivedMsg[receivedBytes] = ' ';	
+			if(pkt.seq_no > 0)
+				receivedMsg[pkt.seq_no - 1] = pkt.msg;
+
+			printf("msg: %s\t%d = %c\n", receivedMsg, pkt.seq_no-1, pkt.msg);
 		}
 
-		if(pkt.fin && cs_pass){
+		//close connection
+		if(pkt.fin && cs_pass && !no_connection){
 			//TODO: close the connection cleanly
 			printf("received FIN\n");
+			printf("**********************************************\n");
 			printf("The complete message is: %s\n", receivedMsg);
+			printf("**********************************************\n");
+			no_connection = 1;
+			expected_seq_no = 0;
+			bzero(receivedMsg, 2048);
+			printf("\n");
+
+		}
+
+		//checksum failure
+		if(!cs_pass){
+					
 		}
 		
 		//create the response packet
@@ -116,10 +157,9 @@ int main(void)
 		resp_pkt.syn = 0;
 		resp_pkt.fin = 0;
 		resp_pkt.msg = '~';
-		if(seq_no_skipped){
-		//	resp_pkt.seq_no = seq_no_skipped;
+		resp_pkt.seq_no = cumulative_ack;
 
-		}
+
 		char* resp_str = create_packet_string(resp_pkt);
 
 		printf("response packet: %s\n", resp_str);
@@ -130,7 +170,6 @@ int main(void)
 		}
 		free(resp_str);
 
-		//TODO: after receiving a packet, respond with an ACK
 
     }
 

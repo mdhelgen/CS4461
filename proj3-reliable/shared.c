@@ -50,8 +50,9 @@ char* create_packet_string(struct packet input){
  *  Returns 1 if the provided checksum matches the calculated checksum, 0 otherwise.
  */
 int convert_to_packet(char* pkt_string_input, struct packet* output){
-	sscanf(pkt_string_input, "%d %d %d %d %c %d", &(output->syn), &(output->ack), &(output->fin), &(output->seq_no), &(output->msg), &(output->checksum));
-	
+	int ret = sscanf(pkt_string_input, "%d %d %d %d %c %d", &(output->syn), &(output->ack), &(output->fin), &(output->seq_no), &(output->msg), &(output->checksum));
+	if(ret != 6)
+		return 0;
 	return (output->checksum == calc_checksum(*output));
 }
 

@@ -35,7 +35,9 @@ int main(int argc, char *argv[])
 	int packets_sent = 0; 		//how many total message packets we have sent
 	int acks_outstanding = 0;	//the number of outstanding ACKs in the window
 	int current_seq_no = 0; 	//the value of the next packet sequence number
+	int duplicateAck = 0;
 
+	struct timeval current_tv;
 	struct packet pkt;          //packet struct for manipulating packet data
 	char* pkt_string;			//packets are encoded as strings before sending
 
@@ -78,6 +80,12 @@ int main(int argc, char *argv[])
 		return 2;
 	}
 
+		fd_set readfds;
+		struct timeval timeout;
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+		FD_ZERO(&readfds);
+		FD_SET(sockfd, &readfds);
 	
 	//send a SYN packet to the server to signal we want to open a connection
 
@@ -89,16 +97,36 @@ int main(int argc, char *argv[])
 
 	//encode the SYN packet as a string
 	pkt_string = create_packet_string(pkt);
-
+	
 	//send the SYN to the server
 	rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
 	if(rv == -1){
 		perror("client: unreliable_sendto");
 	}
-	free(pkt_string);
 
 	bzero(buf, MAXBUFLEN);
 	addr_len = sizeof(their_addr);
+
+	//wait for something to read
+	while(select(sockfd+1, &readfds, NULL, NULL, &timeout) == 0){
+		
+		//resend the packet
+		rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+		if(rv == -1){
+			perror("client: unreliable_sendto");
+		}
+
+		//wait again
+
+		//the file descriptor list was getting reset for some reason
+		FD_ZERO(&readfds);
+		FD_SET(sockfd, &readfds);
+	
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+	}
+
+	free(pkt_string);
 
 	//listen for an ACK to our SYN
 	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
@@ -150,27 +178,35 @@ int main(int argc, char *argv[])
 			//mark the window as being full there
 			window_slot_full[j] = pkt.seq_no;
 
+			//send the packer
 			rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string),
 	   	               0, p->ai_addr, p->ai_addrlen);
 			if(rv == -1){
 				perror("client: unreliable_sendto");
 			}
 
+			gettimeofday(&(window[j].tv), NULL);	
+
 			packets_sent++;
 			acks_outstanding++;
 
 			free(pkt_string);
 		}
-
-
-		//listen for incoming packets
-		fd_set readfds;
-		struct timeval timeout;
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
+		
+		//the file descriptor list was getting reset for some reason
 		FD_ZERO(&readfds);
 		FD_SET(sockfd, &readfds);
+	
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+
+		//listen for incoming packets
 		rv = select(sockfd+1, &readfds, NULL, NULL, &timeout);
+
+		
+		gettimeofday(&current_tv, NULL);
+
+
 		if(rv){
 			bzero(buf, MAXBUFLEN);
 			addr_len = sizeof(their_addr);
@@ -184,8 +220,8 @@ int main(int argc, char *argv[])
 			cs_pass = convert_to_packet(buf, &resp);
 
 
-			if(resp.ack){
-				acks_outstanding--;
+			//if the response is an ACK
+			if(resp.ack && cs_pass){
 
 				int ack_matched = 0;
 
@@ -194,26 +230,100 @@ int main(int argc, char *argv[])
 
 					//if this slot matches the ACK we just received
 					if(window_slot_full[i] == resp.seq_no){
-						printf("ACK received for seq no %d, window slot %d\n", resp.seq_no, i);
 						
+						printf("ACK received for seq no %d, window slot %d\n", resp.seq_no, i);
 						ack_matched = 1;
 						//empty the window slot
 						window_slot_full[i] = 0;
 						bzero(&window[i], sizeof(struct packet));
+						acks_outstanding--;
+					}
+
+
+					//if this slot has a seq_no less than the ACK we just received
+					//the old ack was lost and should be removed due to cumulative ACKs
+					if(window_slot_full[i] < resp.seq_no && window_slot_full[i] > 0){
+						
+						printf("cumulative ACK for seq no %d, window slot %d\n", window_slot_full[i], i);
+						ack_matched = 1;
+						//empty the window slot
+						window_slot_full[i] = 0;
+						bzero(&window[i], sizeof(struct packet));
+						acks_outstanding--;
 					}
 					
 				}
-				if(ack_matched == 0)
+
+				//if we got an ACK we weren't waiting for, it was a duplicate
+				if(ack_matched == 0){
 					printf("ACK with seq_no %d received, but is not outstanding!\n", resp.seq_no);
+					duplicateAck++;
+
+					//after 3 duplicates, resend everything in the window
+					if(duplicateAck == 3){
+						duplicateAck = 0;
+
+						printf("too many duplicate acks received, resending all in window\n");
+						for(int i = 0; i < WINDOW_SIZE; i++){
+							if(window_slot_full[i]){
+								printf("\t resend packet with seq_no %d\n", window_slot_full[i]);
+								pkt_string = create_packet_string(window[i]);
+
+								rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+								if(rv == -1){
+									perror("client: unreliable_sendto");
+								}
+								
+								
+								gettimeofday(&(window[i].tv), NULL);
+
+								free(pkt_string);
+							}
+
+						}
+					}
+				}
 			}
 		}
-	}
+		//the select() call timed out, resend all packets	
+		else{
+			printf("client timeout on receiving\n");
+			for(int i = 0; i < WINDOW_SIZE; i++){
+				if(window_slot_full[i]){
+					printf("\t resend packet with seq_no %d\n", window_slot_full[i]);
+			
+					pkt_string = create_packet_string(window[i]);
 
+					rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+					if(rv == -1){
+						perror("client: unreliable_sendto");
+					}
+					gettimeofday(&(window[i].tv), NULL);
+					free(pkt_string);
+				}
+
+			}
+		}
+
+		for(int i = 0; i < WINDOW_SIZE; i++){
+			if(window_slot_full[i]){
+				if(current_tv.tv_sec - window[i].tv.tv_sec > 2)
+					printf("packet with seq no %d has timed out\n", window[i].seq_no);
+
+
+			}
+
+
+		}
+	}
+	int fin_seq_no = current_seq_no++;
+
+	
 	//send our FIN
 	pkt.syn = 0;
 	pkt.ack = 0;
 	pkt.fin = 1;
-	pkt.seq_no = current_seq_no++;
+	pkt.seq_no = fin_seq_no;
 	pkt.msg = '~';
 
 	pkt_string = create_packet_string(pkt);
@@ -223,18 +333,46 @@ int main(int argc, char *argv[])
 		perror("client: unreliable_sendto");	
 	}
 
+	timeout.tv_sec = 1;
+	timeout.tv_usec = 0;
 
-	bzero(buf, MAXBUFLEN);
-	addr_len = sizeof(their_addr);
-	recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
-	printf("RECV: %s\n", buf);
-	cs_pass = convert_to_packet(buf, &resp);
+	//wait for a response
+	
+	int connection_finished = 0;
 
-	if(resp.ack){
-		printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+	while(!connection_finished){
+		while(select(sockfd+1, &readfds, NULL, NULL, &timeout) == 0) {
+		
+			//resend the packet
+			rv = unreliable_sendto(sockfd, pkt_string, strlen(pkt_string), 0, p->ai_addr, p->ai_addrlen);
+			if(rv == -1){
+				perror("client: unreliable_sendto");
+			}
+
+			//wait again
+			//the file descriptor list was getting reset for some reason
+			FD_ZERO(&readfds);
+			FD_SET(sockfd, &readfds);
+	
+
+			timeout.tv_sec = 1;
+			timeout.tv_usec = 0;
+		}
+
+		bzero(buf, MAXBUFLEN);
+		addr_len = sizeof(their_addr);
+		recvfrom(sockfd, buf, MAXBUFLEN-1, 0, (struct sockaddr*) &their_addr, &addr_len);
+		printf("RECV: %s\n", buf);
+		cs_pass = convert_to_packet(buf, &resp);
+	
+		if(resp.ack){
+			printf("Received ACK for seq_no %d %s\n", resp.seq_no, cs_pass ? "" : "(checksum failed)");
+		}
+		if(resp.seq_no == fin_seq_no)
+			connection_finished = 1;
+	
 	}
 
-	
 
 	freeaddrinfo(servinfo);
 
