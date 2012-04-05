@@ -8,11 +8,27 @@ def move():
 	return 'hi'
 
 
-
-# returns the top level resource specified by the URI path
+# top_level_resource(path_string)
+#
+# 	returns the top level resource specified by the URI path
 def top_level_resource(path_string):
 	path_array = path_string.split('/')
 	return path_array[1];	
+
+
+# file_system_path(path_string)
+# 
+#   returns the file system path specified after the top level resource in the URI
+def file_system_path(path_string):
+
+	filesystem_path = ''
+	path_array = path_string.split('/')
+	for i in range(2, len(path_array)):
+		filesystem_path += '/'
+		filesystem_path += path_array[i]
+
+	return filesystem_path
+
 
 # list_GET_handler(self)
 #
@@ -22,7 +38,11 @@ def list_GET_handler(self):
 	self.send_response(200)
 	self.send_header('Content-type','text')
 	self.end_headers()
-	self.path.split('/')
+
+	print 'filesystem path is: '
+	print file_system_path(self.path)
+	print '\n'
+
 	self.wfile.write('list:\n')
 	self.wfile.write(self.path)
 	self.wfile.write('\n')
@@ -77,5 +97,7 @@ class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 
 httpd = SocketServer.ThreadingTCPServer(('localhost', PORT),CustomHandler)
 print "serving at port", PORT
-httpd.serve_forever()
+
+httpd.handle_request()
+#httpd.serve_forever()
 
