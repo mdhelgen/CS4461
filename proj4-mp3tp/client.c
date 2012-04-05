@@ -9,10 +9,14 @@
 #include <sys/socket.h>
 #include <string.h>
 
+#include <mxml.h>
+
 #include "common.h"
 
 int main(int argc, char *argv[])
 {
+
+	mxml_node_t *xml;
 
     // check return codes
     int ret = 0;
@@ -25,8 +29,8 @@ int main(int argc, char *argv[])
     int len;
 
 	//check arguments
-	if(argc < 3){
-		printf("\tUsage: ./client <hostname> <portnum>\n");
+	if(argc < 4){
+		printf("\tUsage: ./client <hostname> <portnum> <path>\n");
 		exit(1);	
 	}
 
@@ -43,7 +47,7 @@ int main(int argc, char *argv[])
 
 
 	//write the http request to the socket stream
-	ret = fprintf(stream, "GET / HTTP/1.0\r\n");
+	ret = fprintf(stream, "GET %s HTTP/1.0\r\n", argv[3]);
 	if (ret < 0){
 		perror("@@@@@ error occurred when writing to socket");
 		exit(EXIT_FAILURE);

@@ -60,6 +60,32 @@ int main(int argc, char *argv[])
 	free(line);
 }
 */
+
+	printf("%s\n", line);
+
+	char* uri = (char*)malloc(100);
+	bzero(uri, 100);
+	
+	char* method = (char*) malloc(10);
+	bzero(method, 10);
+	
+	sscanf(line, "%s %s %*s", method,uri);
+
+	printf("method: %s\n", method);
+
+	char* tok;
+	tok = strtok(uri, "/");
+
+	while(tok != NULL){
+
+		printf("len: %d\n", strlen(tok));	
+
+		printf("token: %s\n", tok);
+		tok = strtok(NULL, "/");
+
+	}
+
+
 	//is this an HTTP GET request?
 	if(strncmp(line, "GET", strlen("GET")) == 0){
 

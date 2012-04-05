@@ -1,14 +1,14 @@
 .PHONY: all
 all: server client
 
-FLAGS=-g -Wall -std=gnu99
+FLAGS=-g -Wall 
 EXEC=server client
 
 server: server.c common.c
-	gcc ${FLAGS} -o server server.c common.c
+	gcc ${FLAGS} -o server server.c common.c -lmxml -lpthread 
 
 client: client.c common.c
-	gcc ${FLAGS} -o client client.c common.c
+	gcc ${FLAGS} -o client client.c common.c -lmxml -lpthread
 
 
 
