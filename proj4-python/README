@@ -1,0 +1,12 @@
+
+Current Functionality and Usage:
+
+
+	The server can be run with the command:
+		python server.py
+
+	It listens on localhost port 29392 and accepts GET requests.
+
+	Currently, it prints out some information based on the type of request, in preparation for executing various tasks depending on how the request is formed.
+
+	

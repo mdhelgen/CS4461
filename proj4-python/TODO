@@ -1,0 +1,22 @@
+
+
+Server:
+
+The server should recognize the resource being asked for and handle it appropriately
+The server should be able to read tag data from mp3s in the served directory
+The server should be able to convert tag data to an XML representation and return it in the HTTP response
+
+The server should accept POST data and update mp3 tags appropriately based on the XML data in the request body
+
+The server should be able to query the musicbrainz API to search tag data
+
+
+
+
+Client:
+
+The client should take command line arguments and create the proper HTTP request
+The client should print information based on it's success or failure
+The client and server should have a consistent way of handling errors through the HTTP responses
+
+

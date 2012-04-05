@@ -1,0 +1,35 @@
+
+
+GET /list/   
+
+	Returns a list of directories and files in XML format
+	
+	Reponses:
+		200 - success
+
+===============================================================
+GET /list/<directory_path>
+
+	Returns a list of directories and files under the chosen dir
+
+	Responses:
+		200 - success
+		404 - the directory doesn't exist
+
+===============================================================
+GET /tagdata/<path_to_file>
+
+	Returns an XML represenation of the ID3 tag of the mp3
+
+	Responses: 
+		200 - success
+		404 - the file doesn't exist
+
+===============================================================
+GET /tagdata/<directory_path>
+
+	Returns an XML representation of the ID3 tags of all mp3s in the directory
+
+	Responses:
+		200 - success
+		404 - the file doesn't exist

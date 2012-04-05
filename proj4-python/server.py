@@ -7,16 +7,32 @@ def move():
 	""" sample function to be called via a URL"""
 	return 'hi'
 
-def process_path(path_string):
+def top_level_resource(path_string):
 	path_array = path_string.split('/')
-	print path_array[1];	
+	return path_array[1];	
 
 class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 	# custom function for GET requests
 	def do_GET(self):
 
 		# decide what action should take place based on the URI
-		process_path(self.path)
+		if top_level_resource(self.path) == 'list':
+			self.send_response(200)
+			self.send_header('Content-type','text')
+			self.end_headers()
+			self.wfile.write('list:\n')
+			self.wfile.write(self.path)
+			self.wfile.write('\n')
+			return
+
+		if top_level_resource(self.path) == 'tagdata':
+			self.send_response(200)
+			self.send_header('Content-type','text')
+			self.end_headers()
+			self.wfile.write('tagdata:\n')
+			self.wfile.write(self.path)
+			self.wfile.write('\n')
+			return
 
 		if self.path=='/move':
 			self.send_response(200)
