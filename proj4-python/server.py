@@ -1,5 +1,8 @@
+import sys
 import SocketServer
 import SimpleHTTPServer
+import os
+import et.ElementTree as ET
 
 PORT = 29392 
 
@@ -21,31 +24,58 @@ def top_level_resource(path_string):
 #   returns the file system path specified after the top level resource in the URI
 def file_system_path(path_string):
 
-	filesystem_path = ''
+	filesystem_path = './'
 	path_array = path_string.split('/')
+	print path_array
+
 	for i in range(2, len(path_array)):
-		filesystem_path += '/'
-		filesystem_path += path_array[i]
+		if path_array[i] != '':
+			filesystem_path += path_array[i]
+			filesystem_path += '/'
 
 	return filesystem_path
 
+def build_dir_xml(parent_node, path):
+
+	for entry in os.listdir(path):
+		if not os.path.isdir(path + entry):
+			file = ET.SubElement(parent_node, 'file')
+			file.set('path',path)
+			file.text = entry
+
+
+	for entry in os.listdir(path):
+		if os.path.isdir(path + entry):
+			dir = ET.SubElement(parent_node, 'directory')
+			dir.set('path', path)
+			dir.set('name', entry)
+			build_dir_xml(dir, path + entry + '/')
+
+	return
 
 # list_GET_handler(self)
 #
 #  this function is called when the request is of type 'GET /list/...'
 def list_GET_handler(self):
 	
-	self.send_response(200)
-	self.send_header('Content-type','text')
-	self.end_headers()
-
+	fs_path = file_system_path(self.path)
 	print 'filesystem path is: '
-	print file_system_path(self.path)
+	print fs_path
 	print '\n'
+	
+	if not os.path.exists(fs_path):
+		send_404_response(self)	
+		return
 
-	self.wfile.write('list:\n')
-	self.wfile.write(self.path)
-	self.wfile.write('\n')
+	os.listdir(fs_path)
+	root = ET.Element('directory_list')
+	build_dir_xml(root, fs_path)	
+	tree = ET.ElementTree(root)
+
+	self.send_response(200)
+	self.send_header('Content-type','text/xml')
+	self.end_headers()
+	tree.write(self.wfile)
 
 	return
 
