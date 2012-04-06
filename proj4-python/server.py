@@ -1,14 +1,22 @@
+# os/filesystem modules
 import sys
+import os
+
+# http server modules
 import SocketServer
 import SimpleHTTPServer
-import os
+import urllib
+
+# xml parse module
 import et.ElementTree as ET
 
-PORT = 29392 
+#mp3 tag modules
+from mutagen.mp3 import MP3
+from mutagen.easyid3 import EasyID3
 
-def move():
-	""" sample function to be called via a URL"""
-	return 'hi'
+
+PORT = 29392 
+SERVE_DIR = './mp3/'
 
 
 # top_level_resource(path_string)
@@ -24,32 +32,47 @@ def top_level_resource(path_string):
 #   returns the file system path specified after the top level resource in the URI
 def file_system_path(path_string):
 
-	filesystem_path = './'
-	path_array = path_string.split('/')
-	print path_array
+	# the filesystem_path will begin at our served directory
+	filesystem_path = '' 
 
+	path_array = urllib.unquote(path_string).split('/')
+	# there's probably a better way to do this
+	# 
+        # the first entry in our URI path is the resource, so we skip that
+        #  add the rest of the path to the filesystem_path and return it
 	for i in range(2, len(path_array)):
+		# avoid having paths such as .//
 		if path_array[i] != '':
 			filesystem_path += path_array[i]
 			filesystem_path += '/'
+		
+	return filesystem_path[:-1]
 
-	return filesystem_path
 
+# build_dir_xml(parent_node, path)
+#
+#   recursively builds an xml tree. 
+#   parent_node is the xml node of the parent directory
+#   path is the current directory path we are exploring
+#
+#   all of the files are added first, then the directories are recursively added
+#
 def build_dir_xml(parent_node, path):
 
-	for entry in os.listdir(path):
-		if not os.path.isdir(path + entry):
+	# list the regular files in the current directory
+	for entry in os.listdir(SERVE_DIR + path):
+		if not os.path.isdir(SERVE_DIR + path + entry):
 			file = ET.SubElement(parent_node, 'file')
 			file.set('path',path)
 			file.text = entry
 
-
-	for entry in os.listdir(path):
-		if os.path.isdir(path + entry):
+	# list directories. make a new directory tag and then recursively add the files (and directories) under it
+	for entry in os.listdir(SERVE_DIR + path):
+		if os.path.isdir(SERVE_DIR + path + entry):
 			dir = ET.SubElement(parent_node, 'directory')
 			dir.set('path', path)
 			dir.set('name', entry)
-			build_dir_xml(dir, path + entry + '/')
+			build_dir_xml(dir, SERVE_DIR + path + entry + '/')
 
 	return
 
@@ -57,24 +80,32 @@ def build_dir_xml(parent_node, path):
 #
 #  this function is called when the request is of type 'GET /list/...'
 def list_GET_handler(self):
-	
+
+	# get the path from the URI	
 	fs_path = file_system_path(self.path)
-	print 'filesystem path is: '
-	print fs_path
-	print '\n'
-	
-	if not os.path.exists(fs_path):
+
+	# if the path doesn't exist, then return a 404 error	
+	if not os.path.exists(SERVE_DIR + fs_path):
 		send_404_response(self)	
 		return
 
-	os.listdir(fs_path)
-	root = ET.Element('directory_list')
+	# create the xml tree
+	root = ET.Element('list')
+	
+	# the root path is the server directory
+	root.set('path', SERVE_DIR + fs_path)
+
+	# build_dir_xml recursively adds files/directories into the XML tree
 	build_dir_xml(root, fs_path)	
+	
+	# make an ElementTree with the root node
 	tree = ET.ElementTree(root)
 
 	self.send_response(200)
 	self.send_header('Content-type','text/xml')
 	self.end_headers()
+	
+	# write the tree to the response body 
 	tree.write(self.wfile)
 
 	return
@@ -83,13 +114,50 @@ def list_GET_handler(self):
 #
 #  this function is called when the request is of type 'GET /tagdata/...'
 def tagdata_GET_handler(self):
+
+	fs_path = file_system_path(self.path)
+
+	if not os.path.exists(SERVE_DIR + fs_path):
+		send_404_response(self)
+		return
+
+	root = ET.Element("tagdata")
+	
+	root.set('path', SERVE_DIR + fs_path)
+
+	# special case if the path points directly at an mp3
+	if not os.path.isdir(SERVE_DIR + fs_path):
+		node = ET.SubElement(root, 'mp3')
+		node.set('filename', fs_path)
+		audio = EasyID3(SERVE_DIR + fs_path)
+		title = ET.SubElement(node, 'title')
+		title.text = audio["title"][0]
+		artist = ET.SubElement(node, 'artist')
+		artist.text = audio['artist'][0]
+		album = ET.SubElement(node, 'album')
+		album.text = audio['album'][0]
+	else:			
+
+		for entry in os.listdir(SERVE_DIR + fs_path):
+			print fs_path+entry
+			if os.path.splitext(entry)[1] == '.mp3':
+				node = ET.SubElement(root, 'mp3')
+				node.set('filename', entry)
+				audio = EasyID3(SERVE_DIR + fs_path + entry)
+				title = ET.SubElement(node, 'title')
+				title.text = audio["title"][0]
+				artist = ET.SubElement(node, 'artist')
+				artist.text = audio['artist'][0]
+				album = ET.SubElement(node, 'album')
+				album.text = audio['album'][0]
+			
+	
+	tree = ET.ElementTree(root)
+
 	self.send_response(200)
-	self.send_header('Content-type','text')
+	self.send_header('Content-type','text/xml')
 	self.end_headers()
-	self.path.split('/')
-	self.wfile.write('tagdata:\n')
-	self.wfile.write(self.path)
-	self.wfile.write('\n')
+	tree.write(self.wfile)
 	
 	return
 
