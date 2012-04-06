@@ -16,7 +16,7 @@ from mutagen.easyid3 import EasyID3
 
 
 PORT = 29392 
-SERVE_DIR = './mp3/'
+SERVE_DIR = './mp3'
 
 
 # top_level_resource(path_string)
@@ -33,7 +33,7 @@ def top_level_resource(path_string):
 def file_system_path(path_string):
 
 	# the filesystem_path will begin at our served directory
-	filesystem_path = '' 
+	filesystem_path = '/' 
 
 	path_array = urllib.unquote(path_string).split('/')
 	# there's probably a better way to do this
@@ -45,8 +45,13 @@ def file_system_path(path_string):
 		if path_array[i] != '':
 			filesystem_path += path_array[i]
 			filesystem_path += '/'
-		
-	return filesystem_path[:-1]
+
+	if len(filesystem_path) == 1: 
+		print filesystem_path
+		return filesystem_path
+	else: 	
+		print filesystem_path[:-1]
+		return filesystem_path[:-1]
 
 
 # build_dir_xml(parent_node, path)
@@ -63,7 +68,7 @@ def build_dir_xml(parent_node, path):
 	for entry in os.listdir(SERVE_DIR + path):
 		if not os.path.isdir(SERVE_DIR + path + entry):
 			file = ET.SubElement(parent_node, 'file')
-			file.set('path',path)
+			file.set('path', path)
 			file.text = entry
 
 	# list directories. make a new directory tag and then recursively add the files (and directories) under it
@@ -123,12 +128,12 @@ def tagdata_GET_handler(self):
 
 	root = ET.Element("tagdata")
 	
-	root.set('path', SERVE_DIR + fs_path)
+	root.set('path', fs_path)
 
 	# special case if the path points directly at an mp3
 	if not os.path.isdir(SERVE_DIR + fs_path):
 		node = ET.SubElement(root, 'mp3')
-		node.set('filename', fs_path)
+		node.set('path', fs_path)
 		audio = EasyID3(SERVE_DIR + fs_path)
 		title = ET.SubElement(node, 'title')
 		title.text = audio["title"][0]
@@ -186,6 +191,12 @@ class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 		if top_level_resource(self.path) == 'tagdata':
 			tagdata_GET_handler(self)
 			return
+		if top_level_resource(self.path) == 'download':
+			fs_path = file_system_path(self.path)
+			self.path = SERVE_DIR + fs_path
+			print self.path
+			return
+			#SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
 		else:
 			send_404_response(self)
@@ -196,6 +207,6 @@ class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 httpd = SocketServer.ThreadingTCPServer(('localhost', PORT),CustomHandler)
 print "serving at port", PORT
 
-httpd.handle_request()
-#httpd.serve_forever()
+#httpd.handle_request()
+httpd.serve_forever()
 
