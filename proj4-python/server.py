@@ -46,11 +46,13 @@ def file_system_path(path_string):
 			filesystem_path += path_array[i]
 			filesystem_path += '/'
 
+	# ugh, very ugly here as well
+	# unless the path is simply "/", remove the trailing '/' from the return value
+	# this is an issue because  ./dir and ./dir/ are both seen as directories, but
+        #    ./file.mp3 and ./file.mp3/ will not both be seen as existing files
 	if len(filesystem_path) == 1: 
-		print filesystem_path
 		return filesystem_path
 	else: 	
-		print filesystem_path[:-1]
 		return filesystem_path[:-1]
 
 
@@ -77,7 +79,7 @@ def build_dir_xml(parent_node, path):
 			dir = ET.SubElement(parent_node, 'directory')
 			dir.set('path', path)
 			dir.set('name', entry)
-			build_dir_xml(dir, SERVE_DIR + path + entry + '/')
+			build_dir_xml(dir, path + entry + '/')
 
 	return
 
@@ -134,27 +136,46 @@ def tagdata_GET_handler(self):
 	if not os.path.isdir(SERVE_DIR + fs_path):
 		node = ET.SubElement(root, 'mp3')
 		node.set('path', fs_path)
+
 		audio = EasyID3(SERVE_DIR + fs_path)
+		audiomp3 = MP3(SERVE_DIR + fs_path)
+
 		title = ET.SubElement(node, 'title')
 		title.text = audio["title"][0]
+
 		artist = ET.SubElement(node, 'artist')
 		artist.text = audio['artist'][0]
+
 		album = ET.SubElement(node, 'album')
 		album.text = audio['album'][0]
-	else:			
+		
+		length = ET.SubElement(node, 'length')
+		length.text = audiomp3.info.length
 
+		bitrate = ET.SubElement(node, 'bitrate')
+		bitrate.text = audiomp3.info.bitrate
+	# 
+	else:			
 		for entry in os.listdir(SERVE_DIR + fs_path):
-			print fs_path+entry
 			if os.path.splitext(entry)[1] == '.mp3':
 				node = ET.SubElement(root, 'mp3')
 				node.set('filename', entry)
+
 				audio = EasyID3(SERVE_DIR + fs_path + entry)
+				audiomp3 = MP3(SERVE_DIR + fs_path + entry)
+				
 				title = ET.SubElement(node, 'title')
 				title.text = audio["title"][0]
 				artist = ET.SubElement(node, 'artist')
 				artist.text = audio['artist'][0]
 				album = ET.SubElement(node, 'album')
 				album.text = audio['album'][0]
+
+				length = ET.SubElement(node, 'length')
+				length.text = str(audiomp3.info.length)
+
+				bitrate = ET.SubElement(node, 'bitrate')
+				bitrate.text = str(audiomp3.info.bitrate)
 			
 	
 	tree = ET.ElementTree(root)
@@ -194,9 +215,8 @@ class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 		if top_level_resource(self.path) == 'download':
 			fs_path = file_system_path(self.path)
 			self.path = SERVE_DIR + fs_path
-			print self.path
+			SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 			return
-			#SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
 
 		else:
 			send_404_response(self)

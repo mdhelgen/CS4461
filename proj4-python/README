@@ -1,12 +1,55 @@
 
 Current Functionality and Usage:
 
+	The server is a RESTful interface to an mp3 library located in the ./mp3 directory relative to the server.
+	It is still in somewhat early stages, the /list resource supports recursive directory listing but /tagdata does not yet.
 
 	The server can be run with the command:
 		python server.py
 
-	It listens on localhost port 29392 and accepts GET requests.
+	It listens on localhost port 29392 and accepts GET requests. I usually have just been testing by running:
 
-	Currently, it prints out some information based on the type of request, in preparation for executing various tasks depending on how the request is formed.
+	curl localhost:29392/tagdata
+
+	curl localhost:29392/list
+
+
+	or if you are running on a machine with a browser, it is nice to use the browser as it formats the xml nicely
+
+
+
+	GET /list/
+		Display a listing of the files in the mp3 directory, displays directories recursively
+
+	GET /tagdata/
+		Display a listing of files in the mp3 directory and various attributes in their ID3 tags.
+		This does not yet display recursively.
+		ID3 attributes implemented:
+			Title
+			Artist
+			Album
+			Track length
+			Bitrate
+	
+	GET /download/<filename> will serve the file directly	
+
+
+Future work:
+
+	POST /tagdata/
+		Update tag data within the mp3s
+
+	POST /upload/
+		Upload an mp3 to the directory
+
+	I'd also like to write a client program to wrap around the xml/URI interface nicely.
+
+	My stretch goal is to add functionality for the server to update mp3 tags automatically through musicbrainz web API.
+	This is difficult because their API is very heavy and I'm not sure I'll  be able to automatically make the requests and parse the data to get the right files. I need to do more research and find examples of how to use it effectively.
+
+	I'm also not sure yet exactly how to implement the POST interface in my python server, I need to dig into the documentation a little further.		
 
 	
+	All in all it's going very well, I havent used python before and I'm really happy with how easily I've been able to integrate the id3 and xml modules. I spent a very long time trying to get c libraries to do the same thing and finally just switched to python and haven't looked back.
+
+
