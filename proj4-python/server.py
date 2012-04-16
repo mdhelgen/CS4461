@@ -4,7 +4,7 @@ import os
 
 # http server modules
 import SocketServer
-import SimpleHTTPServer
+import BaseHTTPServer
 import urllib
 
 # xml parse module
@@ -187,6 +187,18 @@ def tagdata_GET_handler(self):
 	
 	return
 
+def list_POST_handler(self):
+	send_404_response(self)
+	return
+
+def tagdata_POST_handler(self):
+	send_404_response(self)
+	return
+
+def upload_POST_handler(self):
+	send_404_response(self)
+	return
+
 # send_404_response(self)
 #
 #  Send a generic 404 response indicating the URI was not matched by anything
@@ -200,7 +212,22 @@ def send_404_response(self):
 
 # handles incoming HTTP requests and calls the appropriate handler method
 
-class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+class CustomHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+	def do_POST(self):
+		length = int(self.headers['Content-Length'])
+		print self.rfile.read(length)
+		if top_level_resource(self.path) == 'list':
+			list_POST_handler(self)
+			return
+		if top_level_resource(self.path) == 'tagdata':
+			tagdata_POST_handler(self)
+			return
+		if top_level_resource(self.path) == 'upload':
+			upload_POST_handler(self)
+			return
+		send_404_response(self)
+		return
+
 	# custom function for GET requests
 	def do_GET(self):
 
@@ -215,7 +242,7 @@ class CustomHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
 		if top_level_resource(self.path) == 'download':
 			fs_path = file_system_path(self.path)
 			self.path = SERVE_DIR + fs_path
-			SimpleHTTPServer.SimpleHTTPRequestHandler.do_GET(self)
+			BaseHTTPServer.BaseHTTPRequestHandler.do_GET(self)
 			return
 
 		else:
