@@ -1,6 +1,7 @@
 # os/filesystem modules
 import sys
 import os
+import string
 
 # http server modules
 import SocketServer
@@ -66,20 +67,23 @@ def file_system_path(path_string):
 #
 def build_dir_xml(parent_node, path):
 
+	path = string.replace(path, '//','/')
+
 	# list the regular files in the current directory
 	for entry in os.listdir(SERVE_DIR + path):
-		if not os.path.isdir(SERVE_DIR + path + entry):
+		if not os.path.isdir(SERVE_DIR + path +"/"+ entry):
+			print SERVE_DIR + path + entry
 			file = ET.SubElement(parent_node, 'file')
 			file.set('path', path)
 			file.text = entry
 
 	# list directories. make a new directory tag and then recursively add the files (and directories) under it
 	for entry in os.listdir(SERVE_DIR + path):
-		if os.path.isdir(SERVE_DIR + path + entry):
+		if os.path.isdir(SERVE_DIR + path + "/"+entry):
 			dir = ET.SubElement(parent_node, 'directory')
 			dir.set('path', path)
 			dir.set('name', entry)
-			build_dir_xml(dir, path + entry + '/')
+			build_dir_xml(dir, path +'/'+ entry + '/')
 
 	return
 
