@@ -3,9 +3,12 @@ import sys
 import os
 import string
 
+import md5
+
 # http server modules
 import SocketServer
 import BaseHTTPServer
+import SimpleHTTPServer
 import urllib
 
 # xml parse module
@@ -71,10 +74,11 @@ def build_dir_xml(parent_node, path):
 
 	# list the regular files in the current directory
 	for entry in os.listdir(SERVE_DIR + path):
-		if not os.path.isdir(SERVE_DIR + path +"/"+ entry):
+		if not os.path.isdir(SERVE_DIR + path + entry):
 			print SERVE_DIR + path + entry
 			file = ET.SubElement(parent_node, 'file')
 			file.set('path', path)
+			file.set('hash', md5.new(path+entry).hexdigest())
 			file.text = entry
 
 	# list directories. make a new directory tag and then recursively add the files (and directories) under it
@@ -120,6 +124,14 @@ def list_GET_handler(self):
 	tree.write(self.wfile)
 
 	return
+def download_GET_handler(self):
+
+	mp3file = open('./mp3/02 All I Want.mp3', 'r')
+	self.send_response(200)
+	self.send_header('Content-type', 'audio/mpeg')
+	self.send_header('Content-Disposition','attachment; filename="test.mp3"')
+	
+	self.wfile.write(mp3file.read())
 
 # tagdata_GET_handler(self)
 #
@@ -244,9 +256,7 @@ class CustomHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			tagdata_GET_handler(self)
 			return
 		if top_level_resource(self.path) == 'download':
-			fs_path = file_system_path(self.path)
-			self.path = SERVE_DIR + fs_path
-			BaseHTTPServer.BaseHTTPRequestHandler.do_GET(self)
+			download_GET_handler(self)
 			return
 
 		else:
